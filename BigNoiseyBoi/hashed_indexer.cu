@@ -34,14 +34,18 @@ uint32_t Murmur3HashIndex(uint32_t k)
 }
 
 bool ColourEquals(colour* a, colour* b) {
-    int diff = (a[0] - b[0]) + (a[1] - b[1]) + (a[2] - b[2]);
-    return diff == 0;
+    bool bEq = a[0] == b[0];
+    bool gEq = a[1] == b[1];
+    bool rEq = a[2] == b[2];
+    return bEq && gEq && rEq;
 }
 
 __device__
 bool ColourEqualsGPU(colour* a, colour* b) {
-    int diff = (a[0] - b[0]) + (a[1] - b[1]) + (a[2] - b[2]);
-    return diff == 0;
+    bool bEq = a[0] == b[0];
+    bool gEq = a[1] == b[1];
+    bool rEq = a[2] == b[2];
+    return bEq && gEq && rEq;
 }
 
 __global__

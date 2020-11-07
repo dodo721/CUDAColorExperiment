@@ -19,11 +19,11 @@ void LinearGenPixelColour(colour* imgData, unsigned int imgDataLength, bool* exc
     int idx = (index * 3) + threadIdx.y;
     int addition = (exclusionIndex[index] * imgDataLength);
     int val = index + addition;
-    if (exclusionIndex[index]) {
+    /*if (exclusionIndex[index]) {
         printf("Index: %d, addition: (%d * %d = %d), val: %d\n", index, (int)exclusionIndex[index], imgDataLength, addition, val);
         printf("Colour: %d,%d,%d\n", val % 256, (val / 256) % 256, (val / 65536) % 256);
         printf("OG Colour: %d,%d,%d\n", index % 256, (index / 256) % 256, (index / 65536) % 256);
-    }
+    }*/
     if (threadIdx.y == 1)
         val /= 256;
     else if (threadIdx.y == 2)
