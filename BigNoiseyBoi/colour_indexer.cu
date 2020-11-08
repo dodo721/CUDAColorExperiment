@@ -38,15 +38,7 @@ void IndexColours(colour* colours, int n, ColourEntry* indexer) {
 
 __device__
 bool IndexIntersects(int index, colour3* indexer) {
-    uint32_t hashed_index = Murmur3HashIndex(index);
-    while (true) {
-        if (indexer[hashed_index] != empty_index) {
-            // TODO
-        }
-        else {
-            return false;
-        }
-    }
+    // TODO: Needed?
 }
 
 ColourEntry* initColourIndexer() {
