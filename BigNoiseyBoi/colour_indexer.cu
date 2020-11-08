@@ -3,6 +3,7 @@
 #include <iostream>
 #include <stdio.h>
 #include <opencv2/opencv.hpp>
+#include "imgutils.hpp"
 #include "colour_indexer.cuh"
 
 using namespace std;
@@ -22,11 +23,10 @@ bool ColourEqualsGPU(colour* a, colour* b) {
     return bEq && gEq && rEq;
 }
 
-void IndexColours (colour* colours, int n, ColourEntry* indexer) {
+void IndexColours (colour** colours, int n, ColourEntry* indexer) {
     int indexCount = 0;
     for (int i = 0; i < n; i ++) {
-        int colIdx = i * 3;
-        int idx = colours[colIdx] + (colours[colIdx + 1] * 256) + (colours[colIdx + 2] * 65536);
+        int idx = colours[i][0] + (colours[i][1] * 256) + (colours[i][2] * 65536);
         //printf("i: %d - Colour: %d,%d,%d; Index: %d\n", i, colours[colIdx], colours[colIdx + 1], colours[colIdx + 2], idx);
         indexer[idx].occupied = full_index;
         indexer[idx].order = indexCount;
@@ -51,22 +51,30 @@ ColourEntry* initColourIndexer(ColourEntry* indexer_cpu) {
 // Reverse pixel generation algorithm to figure out to what pixel each excluded colour belongs
 ColourEntry* prepareExclusionList(colour* exclusions, int size) {
 
+    double t = (double)cv::getTickCount();
+
     // Create shared memory indexer for indexing operations
     ColourEntry* indexer_cpu = new ColourEntry[indexer_capacity];
 
-    double t = (double)cv::getTickCount();
+    colour** sortedExcl = new colour* [size];
+    for (int i = 0; i < size; i++) {
+        sortedExcl[i] = new colour[3];
+        sortedExcl[i][0] = exclusions[i * 3];
+        sortedExcl[i][1] = exclusions[i * 3 + 1];
+        sortedExcl[i][2] = exclusions[i * 3 + 2];
+    }
+    sort(sortedExcl, sortedExcl + size, SortByColour);
 
-    IndexColours (exclusions, size, indexer_cpu);
+    IndexColours (sortedExcl, size, indexer_cpu);
 
     // Use linear op to find order using CPU
-    /*int count = 0;
     for (int i = 0; i < indexer_capacity; i++) {
-        if (indexer_shared_mem[i].occupied) {
-            indexer_shared_mem[i].order = count;
-            //cout << "New order for " << i << ": " << count << endl;
-            count++;
+        if (indexer_cpu[i].occupied) {
+            //indexer_shared_mem[i].order = count;
+            cout << "Order for index " << i << ": " << indexer_cpu[i].order << endl;
+            //count++;
         }
-    }*/
+    }
 
     // Create GPU-only indexer for use in image gen
     ColourEntry* indexer = initColourIndexer(indexer_cpu);

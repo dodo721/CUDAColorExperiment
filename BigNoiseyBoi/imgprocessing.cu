@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <opencv2/opencv.hpp>
 #include "colour_indexer.cuh"
+#include "imgutils.hpp"
 #include "imgprocessing.cuh"
 
 using namespace concurrency;
@@ -115,15 +116,6 @@ void InitialiseCUDA() {
     cudaMalloc(&initMem, sizeof(char));
     cudaFree(initMem);
 }
-
-bool SortByColour(colour px1[3], colour px2[3]) {
-    if (px1[0] > px2[0]) return true;
-    else if (px1[0] < px2[0]) return false;
-    else if (px1[1] > px2[1]) return true;
-    else if (px1[1] < px2[1]) return false;
-    else return px1[2] > px2[2];
-}
-
 
 // TODO Include exclusions
 bool ImageIsValid(colour* imgData, size_t imgDataLengthPixels) {
