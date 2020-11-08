@@ -3,35 +3,9 @@
 #include <iostream>
 #include <stdio.h>
 #include <opencv2/opencv.hpp>
-#include "hashed_indexer.cuh"
+#include "colour_indexer.cuh"
 
 using namespace std;
-
-// 64 bit FNV1a hash
-__device__
-uint64_t FNV1a64HashIndex(int idx)
-{
-    const uint64_t prime = 1099511628211;
-    uint64_t hash = 14695981039346656037;
-    for (int j = 0; j < sizeof(int); j++) {
-        char byte = *(&idx + j);
-        hash ^= byte;
-        hash *= prime;
-    }
-    return hash;
-}
-
-// 32 bit Murmur3 hash
-__device__
-uint32_t Murmur3HashIndex(uint32_t k)
-{
-    k ^= k >> 16;
-    k *= 0x85ebca6b;
-    k ^= k >> 13;
-    k *= 0xc2b2ae35;
-    k ^= k >> 16;
-    return k & (indexer_capacity - 1);
-}
 
 bool ColourEquals(colour* a, colour* b) {
     bool bEq = a[0] == b[0];

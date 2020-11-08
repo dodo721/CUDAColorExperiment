@@ -1,5 +1,5 @@
-#ifndef HASHED_INDEXER_CUH
-#define HASHED_INDEXER_CUH
+#ifndef COLOUR_INDEXER_CUH
+#define COLOUR_INDEXER_CUH
 
 #include <stdint.h>
 

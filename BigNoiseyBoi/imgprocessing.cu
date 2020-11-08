@@ -6,7 +6,7 @@
 #include <ppl.h>
 #include <algorithm>
 #include <opencv2/opencv.hpp>
-#include "hashed_indexer.cuh"
+#include "colour_indexer.cuh"
 #include "imgprocessing.cuh"
 
 using namespace concurrency;

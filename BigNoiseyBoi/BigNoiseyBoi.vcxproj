@@ -79,7 +79,7 @@
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <CudaCompile Include="hashed_indexer.cu" />
+    <CudaCompile Include="colour_indexer.cu" />
     <CudaCompile Include="imgprocessing.cu" />
   </ItemGroup>
   <ItemGroup>
@@ -89,7 +89,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="defines.hpp" />
-    <ClInclude Include="hashed_indexer.cuh" />
+    <ClInclude Include="colour_indexer.cuh" />
     <ClInclude Include="imgutils.hpp" />
     <ClInclude Include="input.hpp" />
     <ClInclude Include="imgprocessing.cuh" />
