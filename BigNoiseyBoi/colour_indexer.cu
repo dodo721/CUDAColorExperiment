@@ -22,16 +22,15 @@ bool ColourEqualsGPU(colour* a, colour* b) {
     return bEq && gEq && rEq;
 }
 
-__global__
-void IndexColours(colour* colours, int n, ColourEntry* indexer) {
-    int index = blockIdx.x * blockDim.x + threadIdx.x;
-    int stride = blockDim.x * gridDim.x;
-
-    for (int i = index; i < n; i += stride) {
+void IndexColours (colour* colours, int n, ColourEntry* indexer) {
+    int indexCount = 0;
+    for (int i = 0; i < n; i ++) {
         int colIdx = i * 3;
         int idx = colours[colIdx] + (colours[colIdx + 1] * 256) + (colours[colIdx + 2] * 65536);
         //printf("i: %d - Colour: %d,%d,%d; Index: %d\n", i, colours[colIdx], colours[colIdx + 1], colours[colIdx + 2], idx);
         indexer[idx].occupied = full_index;
+        indexer[idx].order = indexCount;
+        indexCount++;
         //atomicExch((int*)&indexer[idx], full_index);
     }
 }
@@ -41,43 +40,42 @@ bool IndexIntersects(int index, colour3* indexer) {
     // TODO: Needed?
 }
 
-ColourEntry* initColourIndexer() {
+ColourEntry* initColourIndexer(ColourEntry* indexer_cpu) {
     ColourEntry* indexer;
-    cudaMalloc(&indexer, sizeof(ColourEntry) * indexer_capacity);
-    cudaMemset(indexer, 0x00, sizeof(ColourEntry) * indexer_capacity);
+    int indexer_size = sizeof(ColourEntry) * indexer_capacity;
+    cudaMallocManaged(&indexer, indexer_size);
+    cudaMemcpy(indexer, indexer_cpu, indexer_size, cudaMemcpyHostToDevice);
     return indexer;
 }
 
 // Reverse pixel generation algorithm to figure out to what pixel each excluded colour belongs
-// By creating a hashed list of colours the 
-void prepareExclusionList(ColourEntry* indexer, colour* exclusions, int size) {
+ColourEntry* prepareExclusionList(colour* exclusions, int size) {
+
+    // Create shared memory indexer for indexing operations
+    ColourEntry* indexer_cpu = new ColourEntry[indexer_capacity];
 
     double t = (double)cv::getTickCount();
 
-    colour* exclGPU;
-    cudaMalloc(&exclGPU, size * sizeof(colour) * 3);
-    cudaMemcpy(exclGPU, exclusions, sizeof(colour) * 3 * size, cudaMemcpyHostToDevice);
+    IndexColours (exclusions, size, indexer_cpu);
 
-    t = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
-    cout << "Exclusions copied in " << t << "s" << endl;
+    // Use linear op to find order using CPU
+    /*int count = 0;
+    for (int i = 0; i < indexer_capacity; i++) {
+        if (indexer_shared_mem[i].occupied) {
+            indexer_shared_mem[i].order = count;
+            //cout << "New order for " << i << ": " << count << endl;
+            count++;
+        }
+    }*/
 
-    int blockSize = 256;
-    int numBlocks = (size + blockSize - 1) / blockSize;
-    cout << "Threads: " << blockSize << "x" << numBlocks << " = " << (blockSize * numBlocks) << " threads" << endl;
-
-    t = (double)cv::getTickCount();
-
-    t = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
-    cout << "Indexer initalised in " << t << "s" << endl;
-
-    t = (double)cv::getTickCount();
-
-    IndexColours <<<numBlocks, blockSize>>> (exclGPU, size, indexer);
-    cudaDeviceSynchronize();
+    // Create GPU-only indexer for use in image gen
+    ColourEntry* indexer = initColourIndexer(indexer_cpu);
 
     t = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
     cout << "Indexed in " << t << "s" << endl;
 
-    cudaFree(exclGPU);
+    delete[] indexer_cpu;
+
+    return indexer;
 
 }

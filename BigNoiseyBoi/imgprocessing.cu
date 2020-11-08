@@ -16,12 +16,11 @@ __global__
 void LinearGenPixelColour(colour* imgData, unsigned int imgDataLength, ColourEntry* exclusionIndex, size_t exclusionsLength, int* conflictingIndexes) {
     int index = (blockIdx.x * blockDim.x) + threadIdx.x;
     //imgData[colourIndex] = pixelIndex + (((threadIdx.y * 2) + 1) * blockIdx.x);
-    int addition = (exclusionIndex[index].occupied * imgDataLength);
     int val = index + (exclusionIndex[index].occupied * imgDataLength);
     if (exclusionIndex[index].occupied) {
-        printf("Index: %d, addition: (%d * %d = %d), val: %d\n", index, (int)exclusionIndex[index].occupied, imgDataLength, addition, val);
-        printf("Colour: %d,%d,%d\n", val % 256, (val / 256) % 256, (val / 65536) % 256);
-        printf("OG Colour: %d,%d,%d\n", index % 256, (index / 256) % 256, (index / 65536) % 256);
+        printf("Index: %d, order: %d\n", index, (int)exclusionIndex[index].order);
+        //printf("Colour: %d,%d,%d\n", val % 256, (val / 256) % 256, (val / 65536) % 256);
+        //printf("OG Colour: %d,%d,%d\n", index % 256, (index / 256) % 256, (index / 65536) % 256);
     }
     if (threadIdx.y == 1)
         val /= 256;
@@ -73,10 +72,10 @@ void LinearGenImageCPU(colour* imgData, unsigned int imgDataLength) {
 void LinearGenImageGPU(colour* imgData, unsigned int imgDataLength, colour* exclArr, size_t exclLength, bool verbose) {
 
     cout << "Indexing " << exclLength << " colours" << endl;
-    ColourEntry* exclusions = initColourIndexer();
+    ColourEntry* exclusions = nullptr;
     if (exclArr != nullptr) {
         double t = cv::getTickCount();
-        prepareExclusionList(exclusions, exclArr, exclLength);
+        exclusions = prepareExclusionList(exclArr, exclLength);
         t = (cv::getTickCount() - t) / cv::getTickFrequency();
         if (verbose) cout << "Exclusions indexed in " << t << endl;
     }
@@ -100,7 +99,7 @@ void LinearGenImageGPU(colour* imgData, unsigned int imgDataLength, colour* excl
     if (verbose)
         cout << "GPU Thread setup: " << numBlocks << " blocks, " << threadsX << "x" << threadsY << " block size, " << (numBlocks * blockMag) << " total threads" << endl;
 
-    if (exclArr != nullptr)
+    if (exclusions != nullptr)
         LinearGenPixelColour <<<numBlocks, blockSize>>> (gpuImgData, imgDataLength / 3, exclusions, exclLength, excludedIndexes);
     else
         LinearGenPixelColour <<<numBlocks, blockSize>>> (gpuImgData, imgDataLength / 3);

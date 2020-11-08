@@ -5,15 +5,14 @@
 
 struct ColourEntry {
 public:
-	bool occupied;
-	unsigned int order;
+	bool occupied = false;
+	unsigned int order = 0;
 };
 
 const uint32_t indexer_capacity = 256 * 256 * 256;
 const bool empty_index = false;
 const bool full_index = true;
-ColourEntry* initColourIndexer();
-void prepareExclusionList(ColourEntry* indexer, colour* exclusions, int size);
+ColourEntry* prepareExclusionList(colour* exclusions, int size);
 bool ColourEquals(colour* a, colour* b);
 bool ColourEqualsGPU(colour* a, colour* b);
 
