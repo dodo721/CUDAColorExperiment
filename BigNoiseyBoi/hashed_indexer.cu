@@ -49,7 +49,7 @@ bool ColourEqualsGPU(colour* a, colour* b) {
 }
 
 __global__
-void IndexColours(colour* colours, int n, bool* indexer) {
+void IndexColours(colour* colours, int n, ColourEntry* indexer) {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x * gridDim.x;
 
@@ -57,7 +57,7 @@ void IndexColours(colour* colours, int n, bool* indexer) {
         int colIdx = i * 3;
         int idx = colours[colIdx] + (colours[colIdx + 1] * 256) + (colours[colIdx + 2] * 65536);
         //printf("i: %d - Colour: %d,%d,%d; Index: %d\n", i, colours[colIdx], colours[colIdx + 1], colours[colIdx + 2], idx);
-        indexer[idx] = full_index;
+        indexer[idx].occupied = full_index;
         //atomicExch((int*)&indexer[idx], full_index);
     }
 }
@@ -75,16 +75,16 @@ bool IndexIntersects(int index, colour3* indexer) {
     }
 }
 
-bool* initColourIndexer() {
-    bool* indexer;
-    cudaMalloc(&indexer, sizeof(colour3) * indexer_capacity);
-    cudaMemset(indexer, empty_index, sizeof(bool) * indexer_capacity);
+ColourEntry* initColourIndexer() {
+    ColourEntry* indexer;
+    cudaMalloc(&indexer, sizeof(ColourEntry) * indexer_capacity);
+    cudaMemset(indexer, 0x00, sizeof(ColourEntry) * indexer_capacity);
     return indexer;
 }
 
 // Reverse pixel generation algorithm to figure out to what pixel each excluded colour belongs
 // By creating a hashed list of colours the 
-void prepareExclusionList(bool* indexer, colour* exclusions, int size) {
+void prepareExclusionList(ColourEntry* indexer, colour* exclusions, int size) {
 
     double t = (double)cv::getTickCount();
 

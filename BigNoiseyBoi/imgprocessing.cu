@@ -13,13 +13,13 @@ using namespace concurrency;
 using namespace std;
 
 __global__
-void LinearGenPixelColour(colour* imgData, unsigned int imgDataLength, bool* exclusionIndex, size_t exclusionsLength, int* conflictingIndexes) {
+void LinearGenPixelColour(colour* imgData, unsigned int imgDataLength, ColourEntry* exclusionIndex, size_t exclusionsLength, int* conflictingIndexes) {
     int index = (blockIdx.x * blockDim.x) + threadIdx.x;
     //imgData[colourIndex] = pixelIndex + (((threadIdx.y * 2) + 1) * blockIdx.x);
-    int addition = (exclusionIndex[index] * imgDataLength);
-    int val = index + (exclusionIndex[index] * imgDataLength);
-    if (exclusionIndex[index]) {
-        printf("Index: %d, addition: (%d * %d = %d), val: %d\n", index, (int)exclusionIndex[index], imgDataLength, addition, val);
+    int addition = (exclusionIndex[index].occupied * imgDataLength);
+    int val = index + (exclusionIndex[index].occupied * imgDataLength);
+    if (exclusionIndex[index].occupied) {
+        printf("Index: %d, addition: (%d * %d = %d), val: %d\n", index, (int)exclusionIndex[index].occupied, imgDataLength, addition, val);
         printf("Colour: %d,%d,%d\n", val % 256, (val / 256) % 256, (val / 65536) % 256);
         printf("OG Colour: %d,%d,%d\n", index % 256, (index / 256) % 256, (index / 65536) % 256);
     }
@@ -73,7 +73,7 @@ void LinearGenImageCPU(colour* imgData, unsigned int imgDataLength) {
 void LinearGenImageGPU(colour* imgData, unsigned int imgDataLength, colour* exclArr, size_t exclLength, bool verbose) {
 
     cout << "Indexing " << exclLength << " colours" << endl;
-    bool* exclusions = initColourIndexer();
+    ColourEntry* exclusions = initColourIndexer();
     if (exclArr != nullptr) {
         double t = cv::getTickCount();
         prepareExclusionList(exclusions, exclArr, exclLength);
