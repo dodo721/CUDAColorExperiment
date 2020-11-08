@@ -157,6 +157,14 @@ int main(int argc, char* argv[])
         }
     }
 
+    // Check image size is not larger than number of possible unique colours with exclusions
+    int maxUniqueColours = (256 * 256 * 256) - exclLength;
+    if (sizeX * sizeY > maxUniqueColours) {
+        int maxDim = floor(sqrt(maxUniqueColours));
+        cout << "The given image size is too large, and would contain non-unique pixels.\nThe maximum image size possible with the given exclusions is " << maxUniqueColours << " pixels (equivalent to " << maxDim << "x" << maxDim << ")." << endl;
+        return 0;
+    }
+
     if (comparing) {
         cpu = true;
         gpu = true;

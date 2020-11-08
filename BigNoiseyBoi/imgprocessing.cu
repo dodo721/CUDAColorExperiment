@@ -16,20 +16,19 @@ __global__
 void LinearGenPixelColour(colour* imgData, unsigned int imgDataLength, bool* exclusionIndex, size_t exclusionsLength, int* conflictingIndexes) {
     int index = (blockIdx.x * blockDim.x) + threadIdx.x;
     //imgData[colourIndex] = pixelIndex + (((threadIdx.y * 2) + 1) * blockIdx.x);
-    int idx = (index * 3) + threadIdx.y;
     int addition = (exclusionIndex[index] * imgDataLength);
-    int val = index + addition;
-    /*if (exclusionIndex[index]) {
+    int val = index + (exclusionIndex[index] * imgDataLength);
+    if (exclusionIndex[index]) {
         printf("Index: %d, addition: (%d * %d = %d), val: %d\n", index, (int)exclusionIndex[index], imgDataLength, addition, val);
         printf("Colour: %d,%d,%d\n", val % 256, (val / 256) % 256, (val / 65536) % 256);
         printf("OG Colour: %d,%d,%d\n", index % 256, (index / 256) % 256, (index / 65536) % 256);
-    }*/
+    }
     if (threadIdx.y == 1)
         val /= 256;
     else if (threadIdx.y == 2)
         val /= 65536;
     
-    imgData[idx] = val;
+    imgData[(index * 3) + threadIdx.y] = val;
 
     // NO NEED FOR MODULO - BYTE OVERFLOW DOES IT FOR YOU
 }
@@ -126,6 +125,8 @@ bool SortByColour(colour px1[3], colour px2[3]) {
     else return px1[2] > px2[2];
 }
 
+
+// TODO Include exclusions
 bool ImageIsValid(colour* imgData, size_t imgDataLengthPixels) {
     size_t imgDataLength = imgDataLengthPixels * 3;
 
@@ -155,9 +156,11 @@ bool ImageIsValid(colour* imgData, size_t imgDataLengthPixels) {
     parallel_for(size_t(0), imgDataLengthPixels, [&](size_t i) {
         if (i != 0 && ColourEquals(sortedImgData[i], sortedImgData[i - 1])) {
             ret = false;
+            cout << "COLOUR COLLISION: " << (int)sortedImgData[i][0] << "," << (int)sortedImgData[i][1] << "," << (int)sortedImgData[i][2] << endl;
         }
         else if (i != imgDataLengthPixels - 1 && ColourEquals(sortedImgData[i], sortedImgData[i + 1])) {
             ret = false;
+            cout << "COLOUR COLLISION: " << (int)sortedImgData[i][0] << "," << (int)sortedImgData[i][1] << "," << (int)sortedImgData[i][2] << endl;
         }
     });
 
