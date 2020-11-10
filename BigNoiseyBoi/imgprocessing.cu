@@ -13,16 +13,21 @@
 using namespace concurrency;
 using namespace std;
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// KERNELS
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// Exclusion-checking algorithm
 __global__
-void LinearGenPixelColour(colour* imgData, unsigned int imgDataLength, ColourEntry* exclusionIndex, size_t exclusionsLength, int* conflictingIndexes) {
+void LinearGenPixelColour(colour* imgData, unsigned int imgDataLength, ColourEntry* exclusionIndex) {
     int index = (blockIdx.x * blockDim.x) + threadIdx.x;
-    //imgData[colourIndex] = pixelIndex + (((threadIdx.y * 2) + 1) * blockIdx.x);
-    int val = index + (exclusionIndex[index].occupied * imgDataLength);
-    if (exclusionIndex[index].occupied) {
-        printf("Index: %d, order: %d\n", index, (int)exclusionIndex[index].order);
-        //printf("Colour: %d,%d,%d\n", val % 256, (val / 256) % 256, (val / 65536) % 256);
-        //printf("OG Colour: %d,%d,%d\n", index % 256, (index / 256) % 256, (index / 65536) % 256);
-    }
+    bool occupied = exclusionIndex[index].occupied;
+    // Occupied is 0 or 1 therefore 1-occupied=inverse
+    
+    // Use the index if not occupied, use the index, otherwise the end of the image + the exclusion order
+    int val = ((1 - occupied) * index) + (occupied * (imgDataLength + exclusionIndex[index].order));
+
+    // Apply colour calculations
     if (threadIdx.y == 1)
         val /= 256;
     else if (threadIdx.y == 2)
@@ -33,10 +38,10 @@ void LinearGenPixelColour(colour* imgData, unsigned int imgDataLength, ColourEnt
     // NO NEED FOR MODULO - BYTE OVERFLOW DOES IT FOR YOU
 }
 
+// Non-exclusion checking algorithm
 __global__
-void LinearGenPixelColour(colour* imgData, unsigned int imgDataLength) {
+void LinearGenPixelColour(colour* imgData) {
     int index = (blockIdx.x * blockDim.x) + threadIdx.x;
-    //imgData[colourIndex] = pixelIndex + (((threadIdx.y * 2) + 1) * blockIdx.x);
 
     int val = index;
     if (threadIdx.y == 1)
@@ -46,16 +51,11 @@ void LinearGenPixelColour(colour* imgData, unsigned int imgDataLength) {
     imgData[(index * 3) + threadIdx.y] = val;
 
     // NO NEED FOR MODULO - BYTE OVERFLOW DOES IT FOR YOU
-
-    /*int val = i;
-    int temp;
-    for (char j = 0; j < 3; j++) {
-        // Use temp variable to allow divide and modulo in this order, to take advantage of x86 remainder function and reduce divisions by half
-        temp = val / 256;
-        *(pixel + j) = val % 256;
-        val = temp;
-    }*/
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// CPU
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void LinearGenImageCPU(colour* imgData, unsigned int imgDataLength) {
 
@@ -70,21 +70,35 @@ void LinearGenImageCPU(colour* imgData, unsigned int imgDataLength) {
     }
 }
 
-void LinearGenImageGPU(colour* imgData, unsigned int imgDataLength, colour* exclArr, size_t exclLength, bool verbose) {
+void LinearGenImageCPU(colour* imgData, unsigned int imgDataLength, ColourEntry* exclusionIndex, bool verbose) {
 
-    cout << "Indexing " << exclLength << " colours" << endl;
-    ColourEntry* exclusions = nullptr;
-    if (exclArr != nullptr) {
-        double t = cv::getTickCount();
-        exclusions = prepareExclusionList(exclArr, exclLength);
-        t = (cv::getTickCount() - t) / cv::getTickFrequency();
-        if (verbose) cout << "Exclusions indexed in " << t << endl;
+    if (exclusionIndex != nullptr) {
+        // Non-exclusion checking algorithm
+        LinearGenImageCPU(imgData, imgDataLength);
     }
+    else {
+        // Exclusion checking algorithm
+        for (unsigned int i = 0; i < imgDataLength; i++) {
+            colour* pixel = imgData + (i * 3);
+            bool occupied = exclusionIndex[i].occupied;
+            int val = ((1 - occupied) * i) + (occupied * (imgDataLength + exclusionIndex[i].order));
+            for (char j = 0; j < 3; j++) {
+                // NO NEED FOR MODULO - BYTE OVERFLOW DOES IT FOR YOU
+                *(pixel + j) = val;
+                val /= 256;
+            }
+        }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// GPU
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void LinearGenImageGPU(colour* imgData, unsigned int imgDataLength, ColourEntry* exclusionIndex, bool verbose) {
 
     colour* gpuImgData;
     cudaMalloc(&gpuImgData, imgDataLength * sizeof(colour));
-
-    int* excludedIndexes = new int[exclLength];
     
     // MAX BLOCK SIZE:
     //  X: 512
@@ -100,15 +114,14 @@ void LinearGenImageGPU(colour* imgData, unsigned int imgDataLength, colour* excl
     if (verbose)
         cout << "GPU Thread setup: " << numBlocks << " blocks, " << threadsX << "x" << threadsY << " block size, " << (numBlocks * blockMag) << " total threads" << endl;
 
-    if (exclusions != nullptr)
-        LinearGenPixelColour <<<numBlocks, blockSize>>> (gpuImgData, imgDataLength / 3, exclusions, exclLength, excludedIndexes);
+    if (exclusionIndex != nullptr)
+        LinearGenPixelColour <<<numBlocks, blockSize>>> (gpuImgData, imgDataLength, exclusionIndex);
     else
-        LinearGenPixelColour <<<numBlocks, blockSize>>> (gpuImgData, imgDataLength / 3);
+        LinearGenPixelColour <<<numBlocks, blockSize>>> (gpuImgData);
     cudaDeviceSynchronize();
 
     cudaMemcpy(imgData, gpuImgData, imgDataLength * sizeof(colour), cudaMemcpyDeviceToHost);
     cudaFree(gpuImgData);
-    cudaFree(exclusions);
 }
 
 void InitialiseCUDA() {
@@ -116,6 +129,10 @@ void InitialiseCUDA() {
     cudaMalloc(&initMem, sizeof(char));
     cudaFree(initMem);
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// VALIDATION
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // TODO Include exclusions
 bool ImageIsValid(colour* imgData, size_t imgDataLengthPixels) {

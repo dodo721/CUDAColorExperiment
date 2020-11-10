@@ -23,10 +23,11 @@ bool ColourEqualsGPU(colour* a, colour* b) {
     return bEq && gEq && rEq;
 }
 
-void IndexColours (colour** colours, int n, ColourEntry* indexer) {
+void IndexColours (colour* colours, int n, ColourEntry* indexer) {
     int indexCount = 0;
     for (int i = 0; i < n; i ++) {
-        int idx = colours[i][0] + (colours[i][1] * 256) + (colours[i][2] * 65536);
+        int colIdx = i * 3;
+        int idx = colours[colIdx] + (colours[colIdx + 1] * 256) + (colours[colIdx + 2] * 65536);
         //printf("i: %d - Colour: %d,%d,%d; Index: %d\n", i, colours[colIdx], colours[colIdx + 1], colours[colIdx + 2], idx);
         indexer[idx].occupied = full_index;
         indexer[idx].order = indexCount;
@@ -35,55 +36,48 @@ void IndexColours (colour** colours, int n, ColourEntry* indexer) {
     }
 }
 
-__device__
-bool IndexIntersects(int index, colour3* indexer) {
-    // TODO: Needed?
-}
-
 ColourEntry* initColourIndexer(ColourEntry* indexer_cpu) {
     ColourEntry* indexer;
     int indexer_size = sizeof(ColourEntry) * indexer_capacity;
-    cudaMallocManaged(&indexer, indexer_size);
+    cudaMalloc(&indexer, indexer_size);
     cudaMemcpy(indexer, indexer_cpu, indexer_size, cudaMemcpyHostToDevice);
     return indexer;
 }
 
 // Reverse pixel generation algorithm to figure out to what pixel each excluded colour belongs
-ColourEntry* prepareExclusionList(colour* exclusions, int size) {
-
-    double t = (double)cv::getTickCount();
+ColourEntry* prepareExclusionList(colour* exclusions, int size, bool gpu) {
 
     // Create shared memory indexer for indexing operations
     ColourEntry* indexer_cpu = new ColourEntry[indexer_capacity];
 
-    colour** sortedExcl = new colour* [size];
-    for (int i = 0; i < size; i++) {
-        sortedExcl[i] = new colour[3];
-        sortedExcl[i][0] = exclusions[i * 3];
-        sortedExcl[i][1] = exclusions[i * 3 + 1];
-        sortedExcl[i][2] = exclusions[i * 3 + 2];
-    }
-    sort(sortedExcl, sortedExcl + size, SortByColour);
+    IndexColours (exclusions, size, indexer_cpu);
 
-    IndexColours (sortedExcl, size, indexer_cpu);
-
-    // Use linear op to find order using CPU
-    for (int i = 0; i < indexer_capacity; i++) {
-        if (indexer_cpu[i].occupied) {
-            //indexer_shared_mem[i].order = count;
-            cout << "Order for index " << i << ": " << indexer_cpu[i].order << endl;
-            //count++;
-        }
-    }
+    if (!gpu) return indexer_cpu;
 
     // Create GPU-only indexer for use in image gen
     ColourEntry* indexer = initColourIndexer(indexer_cpu);
-
-    t = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
-    cout << "Indexed in " << t << "s" << endl;
 
     delete[] indexer_cpu;
 
     return indexer;
 
+}
+
+ColourEntry* CreateIndex(colour* exclusions, size_t exclLength, bool gpu, bool verbose) {
+    if (verbose) cout << "Indexing " << exclLength << " colours" << endl;
+    ColourEntry* exclusionIndex = nullptr;
+    if (exclusions != nullptr) {
+        double t = cv::getTickCount();
+        exclusionIndex = prepareExclusionList(exclusions, exclLength, gpu);
+        t = (cv::getTickCount() - t) / cv::getTickFrequency();
+        if (verbose) cout << "Exclusions indexed in " << t << endl;
+    }
+    return exclusionIndex;
+}
+
+void FreeIndex(ColourEntry* index, bool gpu) {
+    if (gpu)
+        cudaFree(index);
+    else
+        delete[] index;
 }
