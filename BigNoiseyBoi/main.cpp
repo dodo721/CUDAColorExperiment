@@ -46,9 +46,10 @@ void printHelp() {
     cout << "\t\tCompare: Run both GPU and CPU algorithms and compare them. Mainly useful for debug." << endl;
     cout << "\t-b" << endl;
     cout << "\t\tBenchmark: Only for the brave. Test your CPU and GPU to their limits. Mainly just for fun, using any stats from this test seriously is heavily discouraged." << endl;
-    cout << endl;
     cout << "\t-s <width> <height>" << endl;
     cout << "\t\tSize: Set a size for the image generated to be stretched/squished into. Defaults to the initial sizes." << endl;
+    cout << "\t-sv <filepath>" << endl;
+    cout << "\t\tSave: Save the generated image(s) after generation to the designated folder." << endl;
 }
 
 void printMatrix(Mat* M, string device) {
@@ -142,6 +143,8 @@ int main(int argc, char* argv[])
     bool gpu = true;
     bool comparing = false;
     bool benchmark = false;
+    string savePath = "";
+    string fileType = "PNG";
     ColourEntry* exclusionIndex = nullptr;
     colour* exclusions = nullptr;
     size_t exclLength = 0;
@@ -181,6 +184,19 @@ int main(int argc, char* argv[])
         }
         else if (args[i] == "-b") {
             benchmark = true;
+        }
+        else if (args[i] == "-sv") {
+            savePath = argv[i + 1];
+            i++;
+            struct stat info;
+            if (stat(savePath.c_str(), &info) != 0) {
+                cerr << "Cannot access " << savePath << " for saving!" << endl;
+                return 0;
+            }
+            else if (!(info.st_mode & S_IFDIR)) {  // S_ISDIR() doesn't exist on my windows 
+                cerr << savePath << " is not a directory!" << endl;
+                return 0;
+            }
         }
         else if (args[i] == "-e") {
             string filepath = args[i + 1];
@@ -299,22 +315,35 @@ int main(int argc, char* argv[])
 
     if (exclusions != nullptr) delete exclusions;
 
+    Mat* M1 = nullptr; 
     if (cpu) {
-        Mat M1(sizeX, sizeY, CV_8UC3, imgDataCPU);
-
-        showImg(&M1, winSizeX, winSizeY, "CPU Generated");
+        M1 = new Mat(sizeX, sizeY, CV_8UC3, imgDataCPU);
+        showImg(M1, winSizeX, winSizeY, "CPU Generated");
     }
 
+    Mat* M2 = nullptr;
     if (gpu) {
-        Mat M2(sizeX, sizeY, CV_8UC3, imgDataGPU);
+        M2 = new Mat(sizeX, sizeY, CV_8UC3, imgDataGPU);
+        showImg(M2, winSizeX, winSizeY, "GPU Generated");
+    }
 
-        showImg(&M2, winSizeX, winSizeY, "GPU Generated");
+    waitKey(0);
+
+    if (cpu) {
+        string cpuImgPath = savePath + "/BigNoiseyGen_" + to_string(sizeX) + "x" + to_string(sizeY) + "_CPU" + (exclusionIndex != nullptr ? "_excl" : "") + "." + fileType;
+        imwrite(cpuImgPath, *M1);
+        cout << "Saved CPU image to " << cpuImgPath << endl;
+        delete M1;
+    }
+    if (gpu) {
+        string gpuImgPath = savePath + "/BigNoiseyGen_" + to_string(sizeX) + "x" + to_string(sizeY) + "_GPU" + (exclusionIndex != nullptr ? "_excl" : "") + "." + fileType;
+        imwrite(gpuImgPath, *M2);
+        cout << "Saved GPU image to " << gpuImgPath << endl;
+        delete M2;
     }
 
     delete[] imgDataCPU;
     delete[] imgDataGPU;
-
-    waitKey(0);
 
     return 0;
 

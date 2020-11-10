@@ -72,7 +72,7 @@ void LinearGenImageCPU(colour* imgData, unsigned int imgDataLength) {
 
 void LinearGenImageCPU(colour* imgData, unsigned int imgDataLength, ColourEntry* exclusionIndex, bool verbose) {
 
-    if (exclusionIndex != nullptr) {
+    if (exclusionIndex == nullptr) {
         // Non-exclusion checking algorithm
         LinearGenImageCPU(imgData, imgDataLength);
     }
