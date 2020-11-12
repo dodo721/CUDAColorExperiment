@@ -129,7 +129,7 @@ int main(int argc, char* argv[])
     int sizeX = getNumInput(argv[1]);
     int sizeY = getNumInput(argv[2]);
 
-    if (sizeX == 0 || sizeY == 0) {
+    if (sizeX == -1 || sizeY == -1) {
         cout << "Usage: BigNoiseyBoi.exe <width> <height> [options]\nUse -h for help." << endl;
         return 0;
     }
@@ -143,6 +143,7 @@ int main(int argc, char* argv[])
     bool gpu = true;
     bool comparing = false;
     bool benchmark = false;
+    bool save = false;
     string savePath = "";
     string fileType = "PNG";
     ColourEntry* exclusionIndex = nullptr;
@@ -159,9 +160,13 @@ int main(int argc, char* argv[])
             return 0;
         }
         else if (args[i] == "-s") {
+            if (i + 1 >= args.size() || i + 2 >= args.size()) {
+                cout << "Too few arguments for -s!\nUse -h for help." << endl;
+                return 0;
+            }
             winSizeX = getNumInput(argv[i + 1]);
             winSizeY = getNumInput(argv[i + 2]);
-            if (winSizeX == 0 || winSizeY == 0) {
+            if (winSizeX == -1 || winSizeY == -1) {
                 cout << "Usage: BigNoiseyBoi.exe <width> <height> [options]\nUse -h for help." << endl;
                 return 0;
             }
@@ -186,6 +191,11 @@ int main(int argc, char* argv[])
             benchmark = true;
         }
         else if (args[i] == "-sv") {
+            save = true;
+            if (i + 1 >= args.size()) {
+                cout << "Too few arguments for -sv!\nUse -h for help." << endl;
+                return 0;
+            }
             savePath = argv[i + 1];
             i++;
             struct stat info;
@@ -199,6 +209,10 @@ int main(int argc, char* argv[])
             }
         }
         else if (args[i] == "-e") {
+            if (i + 1 >= args.size()) {
+                cout << "Too few arguments for -e!\nUse -h for help." << endl;
+                return 0;
+            }
             string filepath = args[i + 1];
             try {
                 exclusions = readColourCSV(filepath, &exclLength);
@@ -330,15 +344,19 @@ int main(int argc, char* argv[])
     waitKey(0);
 
     if (cpu) {
-        string cpuImgPath = savePath + "/BigNoiseyGen_" + to_string(sizeX) + "x" + to_string(sizeY) + "_CPU" + (exclusionIndex != nullptr ? "_excl" : "") + "." + fileType;
-        imwrite(cpuImgPath, *M1);
-        cout << "Saved CPU image to " << cpuImgPath << endl;
+        if (save) {
+            string cpuImgPath = savePath + "/BigNoiseyGen_" + to_string(sizeX) + "x" + to_string(sizeY) + "_CPU" + (exclusionIndex != nullptr ? "_excl" : "") + "." + fileType;
+            imwrite(cpuImgPath, *M1);
+            cout << "Saved CPU image to " << cpuImgPath << endl;
+        }
         delete M1;
     }
     if (gpu) {
-        string gpuImgPath = savePath + "/BigNoiseyGen_" + to_string(sizeX) + "x" + to_string(sizeY) + "_GPU" + (exclusionIndex != nullptr ? "_excl" : "") + "." + fileType;
-        imwrite(gpuImgPath, *M2);
-        cout << "Saved GPU image to " << gpuImgPath << endl;
+        if (save) {
+            string gpuImgPath = savePath + "/BigNoiseyGen_" + to_string(sizeX) + "x" + to_string(sizeY) + "_GPU" + (exclusionIndex != nullptr ? "_excl" : "") + "." + fileType;
+            imwrite(gpuImgPath, *M2);
+            cout << "Saved GPU image to " << gpuImgPath << endl;
+        }
         delete M2;
     }
 

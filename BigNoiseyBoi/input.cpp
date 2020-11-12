@@ -9,14 +9,17 @@
 
 using namespace std;
 
-int getNumInput(char* inp) {
+int getNumInput(string arg) {
 
-    string arg = inp;
     try {
         size_t pos;
         int x = stoi(arg, &pos);
         if (pos < arg.size()) {
             cerr << "Trailing characters after number: " << arg << '\n';
+        }
+        else if (x < 0) {
+            cerr << "Number is negative: " << arg << '\n';
+            return -1;
         }
         return x;
     }
@@ -26,7 +29,7 @@ int getNumInput(char* inp) {
     catch (out_of_range const& ex) {
         cerr << "Number out of range: " << arg << '\n';
     }
-    return 0;
+    return -1;
 }
 
 colour* parseColour(string line, int lineNo) {
@@ -39,11 +42,13 @@ colour* parseColour(string line, int lineNo) {
         token = line.substr(0, pos);
         if (count > 1)
             throw;
-        int temp = stoi(token);
+        int temp = getNumInput(token);
         if (temp > 255) {
-            cerr << "Error at line " << lineNo << ": Colour above 255! " << line << endl;
-            throw;
+            cerr << "Error in CSV at line " << lineNo << ": Colour above 255! " << token << endl;
             return nullptr;
+        }
+        else if (temp == -1) {
+            cerr << "The above error occurred at line " << lineNo << " in the CSV file." << endl;
         }
         rgb[count] = temp;
         count++;
@@ -70,9 +75,14 @@ colour* readColourCSV(string filepath, size_t* length) {
         int index = i * 3;
         colour* pixel;
         try {
-            pixel = parseColour(line, i);
+            pixel = parseColour(line, i + 1);
         }
         catch (...) {
+            file.close();
+            delete[] pixels;
+            return nullptr;
+        }
+        if (pixel == nullptr) {
             file.close();
             delete[] pixels;
             return nullptr;
