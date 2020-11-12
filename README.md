@@ -49,3 +49,8 @@ This program is entirely open source under the MIT license. Go wild.
 
 ## Future
 If anyone wants to continue it and further improve on the (admittedly messy and terrible) code I have written, I'd be happy to add contributors. I might revisit this but for now I am moving on to other things.
+
+Features to include:
+* Proper GPU benchmarking (generating multiple images in parallel)
+* 16-bit image support
+* OpenCL support
