@@ -1,4 +1,4 @@
-# BigNoiseyBoi
+# CUDA Color Experiment
 A program to generate an image meeting 2 conditions:
 
 1. Every pixel must be a unique colour
